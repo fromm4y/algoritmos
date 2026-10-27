@@ -1,0 +1,336 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Missão Algoritmo</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Nunito:wght@400;600;800&display=swap">
+<style>
+/* Layout: uma coluna central, cada questão como um "bloco" de tabuleiro do Lightbot; barra de progresso fixa no topo */
+:root{
+  --bg:#eef1fb; --surface:#ffffff; --surface2:#e3e8f8; --ink:#1b1f3b; --mut:#5a6085; --line:#cfd5ee;
+  --accent:#3d5afe; --accent-ink:#ffffff; --tile:#2fc2ff;
+  --easy:#12a37a; --easy-bg:#d9f5ea; --mid:#c77700; --mid-bg:#fdecc8; --hard:#d6336c; --hard-bg:#fbdbe6;
+  --ok:#12a37a; --bad:#d6336c;
+  --display:"Baloo 2","Trebuchet MS",system-ui,sans-serif; --body:Nunito,system-ui,-apple-system,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0e1124; --surface:#171b36; --surface2:#21274a; --ink:#eef0ff; --mut:#a6abd3; --line:#2d3463;
+  --accent:#7b8cff; --accent-ink:#0e1124; --tile:#47cfff;
+  --easy:#4ddba9; --easy-bg:#123a30; --mid:#ffc14d; --mid-bg:#3b2c0c; --hard:#ff7aa5; --hard-bg:#41162a;
+  --ok:#4ddba9; --bad:#ff7aa5; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e1124; --surface:#171b36; --surface2:#21274a; --ink:#eef0ff; --mut:#a6abd3; --line:#2d3463;
+  --accent:#7b8cff; --accent-ink:#0e1124; --tile:#47cfff;
+  --easy:#4ddba9; --easy-bg:#123a30; --mid:#ffc14d; --mid-bg:#3b2c0c; --hard:#ff7aa5; --hard-bg:#41162a;
+  --ok:#4ddba9; --bad:#ff7aa5; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.55;margin:0}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+h1,h2,h3,.btn,.chip{font-family:var(--display)}
+h1,h2,h3{text-wrap:balance;margin:0}
+.wrap{max-width:780px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 48px}
+
+.topbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border-bottom:1px solid var(--line)}
+.topbar .in{max-width:780px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:10px;display:flex;align-items:center;gap:14px}
+.topbar b{font-family:var(--display);font-size:1.05rem;white-space:nowrap}
+.prog{flex:1;height:10px;background:var(--surface2);border-radius:6px;overflow:hidden}
+.prog i{display:block;height:100%;width:0;background:var(--accent);transition:width .3s}
+.topbar span{font-variant-numeric:tabular-nums;color:var(--mut);font-weight:800;white-space:nowrap}
+
+header.hero{padding-block:36px 20px;display:grid;grid-template-columns:1fr auto;gap:20px;align-items:center}
+.hero h1{font-size:clamp(2.1rem,6vw,3.2rem);line-height:1.05;font-weight:800}
+.hero h1 em{font-style:normal;color:var(--accent)}
+.hero p{color:var(--mut);margin:10px 0 0;max-width:52ch}
+.tiles{display:grid;grid-template-columns:repeat(3,26px);gap:5px;transform:rotate(-8deg)}
+.tiles i{width:26px;height:26px;border-radius:6px;background:var(--surface2)}
+.tiles i.on{background:var(--tile);box-shadow:0 0 14px var(--tile)}
+.legend{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+
+.chip{display:inline-block;padding:2px 12px;border-radius:999px;font-weight:700;font-size:.85rem;letter-spacing:.02em}
+.chip.easy{background:var(--easy-bg);color:var(--easy)}
+.chip.mid{background:var(--mid-bg);color:var(--mid)}
+.chip.hard{background:var(--hard-bg);color:var(--hard)}
+
+.block{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:22px;margin-top:16px}
+.lvl{font-family:var(--display);font-size:1.5rem;margin:34px 0 4px;display:flex;align-items:center;gap:10px}
+.lvl small{font-family:var(--body);font-size:.95rem;color:var(--mut);font-weight:600}
+.q{display:grid;gap:12px}
+.qhead{display:flex;gap:12px;align-items:flex-start}
+.num{flex:none;width:38px;height:38px;border-radius:10px;display:grid;place-items:center;font-family:var(--display);font-weight:800;font-size:1.15rem;background:var(--surface2)}
+.easy .num{background:var(--easy-bg);color:var(--easy)} .mid .num{background:var(--mid-bg);color:var(--mid)} .hard .num{background:var(--hard-bg);color:var(--hard)}
+.qhead h3{font-size:1.2rem;font-weight:700;line-height:1.3;padding-top:4px}
+.hint{color:var(--mut);font-size:.95rem;margin:0}
+
+.opts{display:grid;gap:8px}
+.opt{display:flex;gap:10px;align-items:center;text-align:left;width:100%;background:var(--surface2);color:var(--ink);border:2px solid transparent;border-radius:12px;padding:12px 14px;font:inherit;cursor:pointer}
+.opt:hover{border-color:var(--line)}
+.opt b{flex:none;width:28px;height:28px;border-radius:8px;display:grid;place-items:center;background:var(--surface);font-family:var(--display)}
+.opt.sel{border-color:var(--accent)}
+.opt.right{border-color:var(--ok)} .opt.wrong{border-color:var(--bad)}
+.fb{font-weight:800;margin:0}
+.fb.ok{color:var(--ok)} .fb.no{color:var(--bad)}
+
+label{display:block;font-weight:800;margin-bottom:6px}
+input[type=text],textarea{width:100%;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:12px;padding:12px;font:inherit}
+textarea{min-height:90px;resize:vertical}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.rules{display:grid;gap:8px}
+.rules div{display:flex;gap:8px;align-items:center}
+.rules span{font-family:var(--display);font-weight:800;color:var(--hard);flex:none;width:22px}
+
+.sort{display:grid;gap:8px}
+.it{display:flex;align-items:center;gap:10px;background:var(--surface2);padding:10px 12px;border-radius:12px}
+.it span{flex:1;min-width:0}
+.it button{background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:8px;width:36px;height:36px;cursor:pointer;font-size:1rem}
+
+.btn{border:0;border-radius:12px;padding:12px 20px;font-size:1.05rem;font-weight:700;cursor:pointer;background:var(--accent);color:var(--accent-ink)}
+.btn.soft{background:var(--surface2);color:var(--ink)}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+
+/* laboratório */
+.lab{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:14px}
+.phone{background:#0b0d1a;color:#f1f2ff;border-radius:26px;padding:12px;border:3px solid #2a2e4a}
+.phone .top{text-align:center;color:#8d92b8;font-size:.85rem;margin-bottom:8px;font-weight:800}
+.post{background:#171a33;border-radius:14px;padding:10px;margin-bottom:8px;display:flex;gap:10px;align-items:center}
+.post .em{font-size:1.8rem;width:48px;height:48px;display:grid;place-items:center;border-radius:12px;flex:none;background:#262a4d}
+.post .tx{flex:1;min-width:0;font-size:.95rem}
+.post .tx small{display:block;color:#8d92b8}
+.post button{border:0;border-radius:10px;padding:8px 10px;cursor:pointer;font-size:1rem;background:#2a2e4f;color:#fff}
+.post button.lk{background:#e0447a}
+.brain{background:var(--surface2);border-radius:16px;padding:14px}
+.brain h3{font-size:1.05rem;margin-bottom:6px}
+.bar{margin:7px 0;font-size:.9rem}
+.bar .lb{display:flex;justify-content:space-between;font-variant-numeric:tabular-nums}
+.bar .tr{height:10px;background:var(--surface);border-radius:5px;overflow:hidden;margin-top:3px}
+.bar .fl{height:100%;border-radius:5px;transition:width .4s;background:var(--accent)}
+.bar.top .fl{background:var(--hard)}
+.counter{color:var(--mut);font-size:.9rem;font-weight:700;font-variant-numeric:tabular-nums}
+
+.out{white-space:pre-wrap;background:var(--bg);border:2px dashed var(--accent);border-radius:14px;padding:16px;font-size:.95rem;overflow-wrap:anywhere}
+.score{font-family:var(--display);font-size:1.3rem}
+
+@media (max-width:640px){
+  header.hero{grid-template-columns:1fr}.tiles{display:none}
+  .lab,.grid3{grid-template-columns:1fr}
+  .topbar b{display:none}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="topbar"><div class="in"><b>Missão Algoritmo</b><div class="prog"><i id="progBar"></i></div><span id="progTxt">0/10</span></div></div>
+
+<div class="wrap">
+  <header class="hero">
+    <div>
+      <h1>Missão <em>Algoritmo</em> 🤖</h1>
+      <p>Grupo de 2 a 3 pessoas. São 10 questões, das fáceis às difíceis. Conversem, discutam e respondam juntos. No final, gerem o resumo e enviem para a professora.</p>
+      <div class="legend"><span class="chip easy">3 fáceis</span><span class="chip mid">3 médias</span><span class="chip hard">4 difíceis</span></div>
+    </div>
+    <div class="tiles" aria-hidden="true"><i class="on"></i><i></i><i class="on"></i><i></i><i class="on"></i><i></i><i class="on"></i><i></i><i class="on"></i></div>
+  </header>
+
+  <section class="block">
+    <h2 style="font-size:1.3rem;margin-bottom:12px">Quem é o grupo?</h2>
+    <label for="g_nome">Nome do grupo</label>
+    <input type="text" id="g_nome" placeholder="Ex: Os Robôs Perdidos">
+    <div class="grid3" style="margin-top:12px">
+      <div><label for="g_i1">Integrante 1</label><input type="text" id="g_i1"></div>
+      <div><label for="g_i2">Integrante 2</label><input type="text" id="g_i2"></div>
+      <div><label for="g_i3">Integrante 3 (opcional)</label><input type="text" id="g_i3"></div>
+    </div>
+    <div style="margin-top:12px"><label for="g_fase">Até qual fase do Lightbot vocês chegaram?</label><input type="text" id="g_fase" placeholder="Ex: Básico 6 / Procedimentos 2"></div>
+  </section>
+
+  <!-- FÁCEIS -->
+  <h2 class="lvl"><span class="chip easy">Fácil</span> Aquecimento <small>pra começar de boa</small></h2>
+  <div id="easyArea"></div>
+
+  <!-- MÉDIAS -->
+  <h2 class="lvl"><span class="chip mid">Médio</span> Esquentando <small>agora tem que pensar um pouco</small></h2>
+  <div id="midArea"></div>
+
+  <section class="block mid q" id="q6">
+    <div class="qhead"><div class="num">6</div><h3>Laboratório: sejam o algoritmo! Escolham UM tema, curtam só os posts dele e pulem todo o resto. Façam pelo menos 10 ações.</h3></div>
+    <div class="lab">
+      <div class="phone"><div class="top">Para Você</div><div id="feed"></div></div>
+      <div class="brain">
+        <h3>🧠 O que o algoritmo acha de vocês</h3>
+        <div id="bars"></div>
+        <div class="row" style="justify-content:space-between;margin-top:8px"><span class="counter" id="count">Ações: 0</span><button class="btn soft" id="resetFeed" style="padding:8px 12px;font-size:.9rem">Recomeçar</button></div>
+      </div>
+    </div>
+    <p class="hint">Depois de 10 ações, respondam: o que aconteceu com o feed?</p>
+    <div class="opts" data-q="6"></div>
+    <p class="fb" id="fb6"></p>
+  </section>
+
+  <!-- DIFÍCEIS -->
+  <h2 class="lvl"><span class="chip hard">Difícil</span> Modo chefão <small>sem resposta certa: expliquem o raciocínio</small></h2>
+
+  <section class="block hard q">
+    <div class="qhead"><div class="num">7</div><h3>A Ana pulou um vídeo de culinária em 1 segundo. Ela não curtiu, não comentou, não fez nada. Mesmo assim, o algoritmo aprendeu alguma coisa? O quê?</h3></div>
+    <textarea id="a7" placeholder="Pensem no que o tempo de tela diz sobre a gente..."></textarea>
+  </section>
+
+  <section class="block hard q">
+    <div class="qhead"><div class="num">8</div><h3>O robô do Lightbot e o algoritmo do TikTok seguem regras. Mas tem uma diferença grande entre eles. Qual é?</h3></div>
+    <p class="hint">Dica: quem escreve os passos do Lightbot? E quem “ensina” o TikTok todo dia?</p>
+    <textarea id="a8"></textarea>
+  </section>
+
+  <section class="block hard q">
+    <div class="qhead"><div class="num">9</div><h3>Vocês acabaram de criar uma rede social para os alunos da escola. Escrevam 4 regras do algoritmo de recomendação de vocês usando SE... ENTÃO...</h3></div>
+    <p class="hint">Exemplo: SE o aluno assistiu 3 vídeos de futebol, ENTÃO mostrar mais 1 vídeo de futebol e 1 de outro esporte.</p>
+    <div class="rules">
+      <div><span>1</span><input type="text" id="a9_1" placeholder="SE ... ENTÃO ..."></div>
+      <div><span>2</span><input type="text" id="a9_2" placeholder="SE ... ENTÃO ..."></div>
+      <div><span>3</span><input type="text" id="a9_3" placeholder="SE ... ENTÃO ..."></div>
+      <div><span>4</span><input type="text" id="a9_4" placeholder="SE ... ENTÃO ..."></div>
+    </div>
+  </section>
+
+  <section class="block hard q">
+    <div class="qhead"><div class="num">10</div><h3>O Lucas só vê vídeos de um único assunto há meses e acha que todo mundo pensa igual a ele. Por que isso acontece, e o que ele poderia fazer para sair dessa “bolha”?</h3></div>
+    <textarea id="a10"></textarea>
+  </section>
+
+  <section class="block" style="margin-top:34px">
+    <h2 style="font-size:1.4rem">Entregar a missão 🚀</h2>
+    <p class="hint" style="margin:6px 0 14px">Gerem o resumo, copiem e enviem para a professora pelo canal que ela indicar.</p>
+    <div class="row"><button class="btn" id="gerar">Gerar resumo</button><button class="btn soft" id="copiar" hidden>Copiar resumo</button></div>
+    <p class="score" id="score" hidden></p>
+    <div class="out" id="out" hidden></div>
+  </section>
+</div>
+
+<script>
+const L=['A','B','C','D'];
+const mc={
+ 1:{lvl:'easy',area:'easyArea',t:'O que é um algoritmo?',o:['Um tipo de robô','Uma sequência de passos, em ordem, para resolver um problema','Um aplicativo de rede social','Um vírus de computador'],c:1,ok:'Isso! Passos em ordem, com começo e fim.',no:'Quase! Lembrem do miojo: uma receita de passos.'},
+ 2:{lvl:'easy',area:'easyArea',t:'No Lightbot, qual comando acende o quadrado azul?',o:['Andar','Pular','Acender a luz','Virar'],c:2,ok:'Boa! A lâmpada é o objetivo do jogo.',no:'Hmm, voltem no Lightbot e testem.'},
+ 3:{lvl:'easy',area:'easyArea',t:'Qual destas coisas o algoritmo de uma rede social NÃO consegue ver?',o:['O que você curtiu','Quanto tempo você assistiu um vídeo','O que você pensou sem tocar no celular','O que você compartilhou'],c:2,ok:'Exato! Ele só vê o que você FAZ no app.',no:'Não é essa. Pensem: o que fica registrado no app?'},
+ 5:{lvl:'mid',area:'midArea',t:'No Lightbot, para que serve o P1 (procedimento)?',o:['Para apagar todos os comandos','Para guardar um conjunto de passos e repetir sem escrever tudo de novo','Para pular de fase','Para mudar a cor do robô'],c:1,ok:'Mandaram bem! É um “atalho” de passos, que nem uma função na programação.',no:'Não é bem isso. O que acontece quando o robô chega no P1?'},
+ 6:{lvl:'mid',t:'',o:['O feed continuou igualzinho, com todos os temas','O feed começou a mostrar muito mais posts do tema curtido','O feed parou de mostrar posts','O feed só mostrou temas que a gente pulou'],c:1,ok:'Isso! O algoritmo “aprendeu” com vocês. É assim que nasce uma bolha.',no:'Olhem de novo para o cérebro do algoritmo. Qual barra cresceu?'}
+};
+const st={};
+
+function renderMC(n,host){
+  const q=mc[n];let box;
+  if(host){box=document.createElement('section');box.className='block q '+q.lvl;
+    box.innerHTML=`<div class="qhead"><div class="num">${n}</div><h3>${q.t}</h3></div><div class="opts" data-q="${n}"></div><p class="fb" id="fb${n}"></p>`;
+    host.appendChild(box);}
+  const opts=document.querySelector(`.opts[data-q="${n}"]`);
+  q.o.forEach((t,i)=>{const b=document.createElement('button');b.type='button';b.className='opt';b.id=`q${n}o${i}`;
+    b.innerHTML=`<b>${L[i]}</b><span>${t}</span>`;
+    b.onclick=()=>{
+      if(!st[n])st[n]={first:i===q.c,tries:0};
+      st[n].tries++;st[n].pick=i;st[n].done=i===q.c||st[n].done;
+      opts.querySelectorAll('.opt').forEach((x,j)=>{x.classList.remove('right','wrong','sel');if(j===i)x.classList.add(i===q.c?'right':'wrong')});
+      const fb=document.getElementById('fb'+n);fb.textContent=(i===q.c?'✅ ':'❌ ')+(i===q.c?q.ok:q.no);fb.className='fb '+(i===q.c?'ok':'no');
+      prog();};
+    opts.appendChild(b);});
+}
+[1,2,3].forEach(n=>renderMC(n,document.getElementById('easyArea')));
+
+// Q4 ordenar (médio)
+const certo=['Pegar a escova','Colocar pasta na escova','Escovar os dentes por 2 minutos','Cuspir e enxaguar a boca','Lavar e guardar a escova'];
+let ordem=[3,0,4,1,2].map(i=>certo[i]);let q4={tries:0,ok:false,first:null};
+const midArea=document.getElementById('midArea');
+const b4=document.createElement('section');b4.className='block q mid';
+b4.innerHTML=`<div class="qhead"><div class="num">4</div><h3>O algoritmo de escovar os dentes ficou todo bagunçado. Usem as setas para colocar os passos na ordem certa.</h3></div><div class="sort" id="sort"></div><div class="row"><button class="btn" id="testSort" type="button">Testar algoritmo</button></div><p class="fb" id="fb4"></p>`;
+midArea.appendChild(b4);
+function drawSort(){const s=document.getElementById('sort');s.innerHTML='';ordem.forEach((t,i)=>{
+  const d=document.createElement('div');d.className='it';
+  d.innerHTML=`<b>${i+1}.</b><span>${t}</span><button type="button" aria-label="Subir passo">⬆</button><button type="button" aria-label="Descer passo">⬇</button>`;
+  const [u,dn]=d.querySelectorAll('button');
+  u.onclick=()=>{if(i>0){[ordem[i-1],ordem[i]]=[ordem[i],ordem[i-1]];drawSort()}};
+  dn.onclick=()=>{if(i<ordem.length-1){[ordem[i+1],ordem[i]]=[ordem[i],ordem[i+1]];drawSort()}};
+  s.appendChild(d);});}
+drawSort();
+document.getElementById('testSort').onclick=()=>{
+  q4.tries++;const a=ordem.filter((t,i)=>t===certo[i]).length;const ok=a===certo.length;
+  if(q4.first===null)q4.first=ok;q4.ok=q4.ok||ok;
+  const fb=document.getElementById('fb4');fb.textContent=ok?`✅ Algoritmo perfeito! (${q4.tries} tentativa${q4.tries>1?'s':''})`:`❌ Bug! ${a} de ${certo.length} passos no lugar certo. Tentem de novo.`;fb.className='fb '+(ok?'ok':'no');prog();};
+renderMC(5,midArea);
+renderMC(6);
+
+// Feed
+const temas={
+ games:{n:'Games',e:'🎮',p:['Speedrun de Minecraft','Top 5 jogos de celular','Bug engraçado no Roblox','Construí uma cidade gigante']},
+ futebol:{n:'Futebol',e:'⚽',p:['Golaço de bicicleta','Melhores dribles do ano','Desafio de embaixadinha','Bastidores do clássico']},
+ musica:{n:'Música',e:'🎵',p:['Cover acústico viral','Aprenda essa batida','Música do momento','Desafio de dança']},
+ animais:{n:'Animais',e:'🐶',p:['Cachorro que fala “mamãe”','Gato vs pepino','Panda espirrando','Papagaio cantando']},
+ arte:{n:'Desenho',e:'🎨',p:['Desenhando anime em 1 min','Pintura com café','Dicas de sombreamento','Arte com giz na calçada']},
+ ciencia:{n:'Ciência',e:'🔬',p:['Experimento de vulcão','Como um foguete funciona','Fatos sobre o espaço','Robô que monta cubo mágico']}
+};
+let peso,acoes;
+function resetFeed(){peso={};for(const k in temas)peso[k]=5;acoes=0;drawFeed();}
+function sortear(){const tot=Object.values(peso).reduce((a,b)=>a+b,0);let r=Math.random()*tot;for(const k in peso){r-=peso[k];if(r<=0)return k}return 'games';}
+function topTema(){return Object.keys(peso).sort((a,b)=>peso[b]-peso[a])[0]}
+function drawFeed(){
+  const f=document.getElementById('feed');f.innerHTML='';
+  for(let i=0;i<4;i++){const k=sortear(),t=temas[k];const tx=t.p[Math.floor(Math.random()*t.p.length)];
+    const d=document.createElement('div');d.className='post';
+    d.innerHTML=`<div class="em">${t.e}</div><div class="tx"><b>${tx}</b><small>#${t.n.toLowerCase()}</small></div><button type="button" class="lk" aria-label="Curtir">❤️</button><button type="button" aria-label="Pular">⏭️</button>`;
+    const [lk,sk]=d.querySelectorAll('button');
+    lk.onclick=()=>{peso[k]+=6;acoes++;drawFeed()};
+    sk.onclick=()=>{peso[k]=Math.max(1,peso[k]-2);acoes++;drawFeed()};
+    f.appendChild(d);}
+  const tot=Object.values(peso).reduce((a,b)=>a+b,0),top=topTema();
+  document.getElementById('bars').innerHTML=Object.keys(temas).map(k=>{const p=Math.round(peso[k]/tot*100);
+    return `<div class="bar${k===top&&acoes>0?' top':''}"><div class="lb"><span>${temas[k].e} ${temas[k].n}</span><b>${p}%</b></div><div class="tr"><div class="fl" style="width:${p}%"></div></div></div>`}).join('');
+  document.getElementById('count').textContent=`Ações: ${acoes}`+(acoes>=10?' ✅':'');
+}
+document.getElementById('resetFeed').onclick=resetFeed;resetFeed();
+
+// Progresso
+const abertas=['a7','a8','a10'];
+function prog(){
+  let n=[1,2,3,5,6].filter(k=>st[k]).length+(q4.tries?1:0);
+  abertas.forEach(id=>{if(document.getElementById(id).value.trim())n++});
+  if([1,2,3,4].some(i=>document.getElementById('a9_'+i).value.trim()))n++;
+  document.getElementById('progBar').style.width=n*10+'%';document.getElementById('progTxt').textContent=n+'/10';
+}
+document.addEventListener('input',prog);
+
+// Resumo
+const val=id=>document.getElementById(id).value.trim();
+const v=id=>val(id)||'(sem resposta)';
+document.getElementById('gerar').onclick=()=>{
+  const fechadas=[1,2,3,4,5,6];
+  const acertos=fechadas.filter(n=>n===4?q4.first===true:st[n]&&st[n].first).length;
+  const linha=n=>{if(n===4)return `4) Ordenar algoritmo: ${q4.tries?(q4.first?'✅ de primeira':(q4.ok?'✅ depois de '+q4.tries+' tentativas':'❌ não acertaram')):'(não respondida)'}`;
+    const s=st[n];return `${n}) ${s?(s.first?'✅ de primeira':(s.done?'✅ depois de '+s.tries+' tentativas':'❌ marcaram '+L[s.pick])):'(não respondida)'}`};
+  const integ=['g_i1','g_i2','g_i3'].map(val).filter(Boolean).join(', ');
+  const tot=Object.values(peso).reduce((a,b)=>a+b,0),top=topTema();
+  const regras=[1,2,3,4].map(i=>`   ${i}. ${v('a9_'+i)}`).join('\n');
+  const txt=`MISSÃO ALGORITMO
+Grupo: ${v('g_nome')}
+Integrantes: ${integ||'(sem nomes)'}
+Fase do Lightbot: ${v('g_fase')}
+
+ACERTOS DE PRIMEIRA (questões 1 a 6): ${acertos}/6
+${fechadas.map(linha).join('\n')}
+   Laboratório: ${acoes} ações · tema dominante: ${temas[top].n} (${Math.round(peso[top]/tot*100)}%)
+
+QUESTÕES DIFÍCEIS
+7) ${v('a7')}
+
+8) ${v('a8')}
+
+9) Regras do algoritmo:
+${regras}
+
+10) ${v('a10')}`;
+  const o=document.getElementById('out');o.textContent=txt;o.hidden=false;
+  const sc=document.getElementById('score');sc.textContent=`🎯 ${acertos}/6 acertos de primeira nas questões fáceis e médias`;sc.hidden=false;
+  const c=document.getElementById('copiar');c.hidden=false;c.textContent='Copiar resumo';
+};
+document.getElementById('copiar').onclick=()=>{
+  const t=document.getElementById('out').textContent,c=document.getElementById('copiar');
+  const sel=()=>{const r=document.createRange();r.selectNodeContents(document.getElementById('out'));const s=getSelection();s.removeAllRanges();s.addRange(r);c.textContent='Texto selecionado: use Ctrl+C'};
+  try{navigator.clipboard.writeText(t).then(()=>c.textContent='✅ Copiado!',sel)}catch(e){sel()}
+};
+</script>
+
+</body></html>
